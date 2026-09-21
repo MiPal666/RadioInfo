@@ -1,0 +1,15 @@
+.sfdk/
+RPMS/
+*.rpm
+*.tar.gz
+*.o
+*.obj
+Makefile
+moc_*
+qrc_*
+*.qm
+*.user
+*.user.*
+/documentation.list
+/harbour-radioinfo
+/translations/harbour-radioinfo.ts
