@@ -381,7 +381,7 @@ void NetworkInfo::refresh()
     }
 
     m_refreshing = true;
-    m_pendingRefreshParts = 3; // registration, IMS, Wi-Fi
+    m_pendingRefreshParts = 4; // registration, IMS, mobile IP, Wi-Fi
     m_refreshWarnings.clear();
     m_status = tr("Refreshing…");
     emit refreshingChanged();
@@ -405,6 +405,7 @@ void NetworkInfo::refresh()
     }
 
     readImsAsync();
+    readMobileIpAsync();
     readWifiAsync();
 }
 
@@ -885,12 +886,84 @@ QString NetworkInfo::detectWifiInterface(const QString &output) const
     return !connectedManaged.isEmpty() ? connectedManaged : firstManaged;
 }
 
+
+void NetworkInfo::readMobileIpAsync()
+{
+    m_mobileIpEntries.clear();
+    emit dataChanged();
+
+    const QString ip = findProgram(QStringLiteral("ip"));
+    if (ip.isEmpty()) {
+        m_refreshWarnings << tr("Mobile IP: missing program ip");
+        emit dataChanged();
+        finishRefreshPart();
+        return;
+    }
+
+    QProcess *addr = new QProcess(this);
+    connect(addr, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
+            [this, addr](int code, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(addr->readAllStandardOutput());
+        const QString err = QString::fromUtf8(addr->readAllStandardError()).trimmed();
+        if (code == 0) {
+            parseMobileAddresses(out);
+        } else {
+            m_refreshWarnings << tr("Mobile IP: %1")
+                    .arg(err.isEmpty() ? tr("error") : err);
+        }
+        addr->deleteLater();
+        emit dataChanged();
+        finishRefreshPart();
+    });
+    connect(addr, &QProcess::errorOccurred, this,
+            [this, addr](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart)
+            return;
+        m_refreshWarnings << tr("Mobile IP: cannot start ip (%1)")
+                .arg(addr->errorString());
+        addr->deleteLater();
+        emit dataChanged();
+        finishRefreshPart();
+    });
+
+    // AIDA64 exposes the same kernel network interfaces.  On the tested
+    // MediaTek Sailfish device the packet-data interfaces are named ccmniN.
+    // Do not map ccmniN to SIM slots: one SIM can have several PDP contexts.
+    addr->start(ip, QStringList() << QStringLiteral("-o")
+                                  << QStringLiteral("addr")
+                                  << QStringLiteral("show"));
+}
+
+void NetworkInfo::parseMobileAddresses(const QString &output)
+{
+    QVariantList entries;
+    const QRegularExpression re(
+                QStringLiteral("^\\d+:\\s+(ccmni\\d+)\\s+(inet6?)\\s+([^\\s]+)"));
+
+    const QStringList lines = output.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const QRegularExpressionMatch match = re.match(line.trimmed());
+        if (!match.hasMatch())
+            continue;
+
+        QVariantMap item;
+        item.insert(QStringLiteral("name"), match.captured(1));
+        item.insert(QStringLiteral("family"),
+                    match.captured(2) == QStringLiteral("inet6")
+                    ? QStringLiteral("IPv6") : QStringLiteral("IPv4"));
+        item.insert(QStringLiteral("address"), match.captured(3));
+        entries.append(item);
+    }
+
+    m_mobileIpEntries = entries;
+}
+
 void NetworkInfo::readWifiAsync()
 {
     m_wifiInterface = QStringLiteral("—");
     m_wifiSsid = m_wifiBssid = m_wifiBand = m_wifiChannel = QStringLiteral("—");
     m_wifiFrequency = m_wifiRssi = m_wifiRxRate = m_wifiTxRate = QStringLiteral("—");
-    m_wifiIp = m_wifiGateway = m_wifiDns = QStringLiteral("—");
+    m_wifiIp = m_wifiIpv6 = m_wifiGateway = m_wifiGateway6 = m_wifiDns = QStringLiteral("—");
     m_wifiStatus = tr("Loading…");
     emit dataChanged();
 
@@ -957,7 +1030,7 @@ void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
                                          const QString &dnsTool, const QString &iface)
 {
     struct SharedState {
-        int pending = 3;
+        int pending = 4;
         bool disconnected = false;
         QStringList errors;
     };
@@ -1033,7 +1106,9 @@ void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
         addr->deleteLater();
         done();
     });
-    addr->start(ip, QStringList() << QStringLiteral("-4") << QStringLiteral("-o")
+    // Read both IPv4 and IPv6 addresses. This also exposes an IPv6 link-local
+    // address on networks without routed IPv6, which is useful for diagnostics.
+    addr->start(ip, QStringList() << QStringLiteral("-o")
                                   << QStringLiteral("addr") << QStringLiteral("show")
                                   << QStringLiteral("dev") << iface);
 
@@ -1060,6 +1135,31 @@ void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
     });
     route->start(ip, QStringList() << QStringLiteral("route") << QStringLiteral("show")
                                    << QStringLiteral("default") << QStringLiteral("dev") << iface);
+
+    QProcess *route6 = new QProcess(this);
+    connect(route6, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
+            [this, route6, state, done](int code, QProcess::ExitStatus) {
+        const QString out = QString::fromUtf8(route6->readAllStandardOutput());
+        const QString err = QString::fromUtf8(route6->readAllStandardError()).trimmed();
+        if (code == 0)
+            parseWifiRoute6(out);
+        else
+            state->errors << QStringLiteral("ip -6 route: %1")
+                    .arg(err.isEmpty() ? tr("error") : err);
+        route6->deleteLater();
+        done();
+    });
+    connect(route6, &QProcess::errorOccurred, this,
+            [this, route6, state, done](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart)
+            return;
+        state->errors << tr("ip -6 route: cannot start (%1)").arg(route6->errorString());
+        route6->deleteLater();
+        done();
+    });
+    route6->start(ip, QStringList() << QStringLiteral("-6") << QStringLiteral("route")
+                                    << QStringLiteral("show") << QStringLiteral("default")
+                                    << QStringLiteral("dev") << iface);
 
     if (!dnsTool.isEmpty()) {
         QProcess *dns = new QProcess(this);
@@ -1125,9 +1225,28 @@ void NetworkInfo::parseWifiLink(const QString &output)
 
 void NetworkInfo::parseWifiAddress(const QString &output)
 {
-    QRegularExpression re(QStringLiteral("\\binet\\s+([^\\s]+)"));
-    const QRegularExpressionMatch m = re.match(output);
-    if (m.hasMatch()) m_wifiIp = m.captured(1);
+    QStringList ipv4;
+    QStringList ipv6;
+
+    const QRegularExpression re(
+                QStringLiteral("^\\d+:\\s+[^\\s]+\\s+(inet6?)\\s+([^\\s]+)"));
+
+    const QStringList lines = output.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const QRegularExpressionMatch match = re.match(line.trimmed());
+        if (!match.hasMatch())
+            continue;
+
+        if (match.captured(1) == QStringLiteral("inet6"))
+            ipv6 << match.captured(2);
+        else
+            ipv4 << match.captured(2);
+    }
+
+    if (!ipv4.isEmpty())
+        m_wifiIp = ipv4.join(QStringLiteral(", "));
+    if (!ipv6.isEmpty())
+        m_wifiIpv6 = ipv6.join(QStringLiteral(", "));
 }
 
 void NetworkInfo::parseWifiRoute(const QString &output)
@@ -1136,6 +1255,14 @@ void NetworkInfo::parseWifiRoute(const QString &output)
     const QRegularExpressionMatch m = re.match(output);
     if (m.hasMatch()) m_wifiGateway = m.captured(1);
 }
+
+void NetworkInfo::parseWifiRoute6(const QString &output)
+{
+    QRegularExpression re(QStringLiteral("\\bvia\\s+([^\\s]+)"));
+    const QRegularExpressionMatch m = re.match(output);
+    if (m.hasMatch()) m_wifiGateway6 = m.captured(1);
+}
+
 
 void NetworkInfo::parseWifiDns(const QString &output)
 {

@@ -1,6 +1,6 @@
 Name:       harbour-radioinfo
 Summary:    Radio and network information
-Version:    0.1.6
+Version:    0.1.7
 Release:    1
 Group:      Qt/Qt
 License:    GPL-3.0-or-later

@@ -107,12 +107,24 @@
         <translation>Frequency</translation>
     </message>
     <message>
-        <source>Gateway</source>
-        <translation>Gateway</translation>
-    </message>
-    <message>
         <source>Status</source>
         <translation>Status</translation>
+    </message>
+    <message>
+        <source>IPv4 gateway</source>
+        <translation>IPv4 gateway</translation>
+    </message>
+    <message>
+        <source>IPv6 gateway</source>
+        <translation>IPv6 gateway</translation>
+    </message>
+    <message>
+        <source>Mobile IP interfaces</source>
+        <translation>Mobile IP interfaces</translation>
+    </message>
+    <message>
+        <source>No active mobile IP interface</source>
+        <translation>No active mobile IP interface</translation>
     </message>
 </context>
 <context>
@@ -228,6 +240,22 @@
     <message>
         <source>error</source>
         <translation>error</translation>
+    </message>
+    <message>
+        <source>ip -6 route: cannot start (%1)</source>
+        <translation>ip -6 route: cannot start (%1)</translation>
+    </message>
+    <message>
+        <source>Mobile IP: missing program ip</source>
+        <translation>Mobile IP: missing program ip</translation>
+    </message>
+    <message>
+        <source>Mobile IP: %1</source>
+        <translation>Mobile IP: %1</translation>
+    </message>
+    <message>
+        <source>Mobile IP: cannot start ip (%1)</source>
+        <translation>Mobile IP: cannot start ip (%1)</translation>
     </message>
 </context>
 </TS>

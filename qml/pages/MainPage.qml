@@ -96,6 +96,26 @@ Page {
             DetailItem { label: qsTr("Timing Advance"); value: networkInfo.timingAdvance }
             DetailItem { label: "IMS"; value: networkInfo.ims }
 
+            SectionHeader { text: qsTr("Mobile IP interfaces") }
+
+            Repeater {
+                model: networkInfo.mobileIpEntries
+                delegate: DetailItem {
+                    label: modelData.name + " " + modelData.family
+                    value: modelData.address
+                }
+            }
+
+            Label {
+                visible: networkInfo.mobileIpEntries.length === 0
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                horizontalAlignment: Text.AlignRight
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+                text: qsTr("No active mobile IP interface")
+            }
+
             SectionHeader { text: qsTr("Wi-Fi") }
 
             DetailItem { label: qsTr("Interface"); value: networkInfo.wifiInterface }
@@ -108,7 +128,9 @@ Page {
             DetailItem { label: "RX rate"; value: networkInfo.wifiRxRate }
             DetailItem { label: "TX rate"; value: networkInfo.wifiTxRate }
             DetailItem { label: "IPv4"; value: networkInfo.wifiIp }
-            DetailItem { label: qsTr("Gateway"); value: networkInfo.wifiGateway }
+            DetailItem { label: "IPv6"; value: networkInfo.wifiIpv6 }
+            DetailItem { label: qsTr("IPv4 gateway"); value: networkInfo.wifiGateway }
+            DetailItem { label: qsTr("IPv6 gateway"); value: networkInfo.wifiGateway6 }
             DetailItem { label: "DNS"; value: networkInfo.wifiDns }
 
             Label {

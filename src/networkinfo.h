@@ -58,6 +58,7 @@ class NetworkInfo : public QObject
     Q_PROPERTY(QString cqi READ cqi NOTIFY dataChanged)
     Q_PROPERTY(QString timingAdvance READ timingAdvance NOTIFY dataChanged)
     Q_PROPERTY(QString ims READ ims NOTIFY dataChanged)
+    Q_PROPERTY(QVariantList mobileIpEntries READ mobileIpEntries NOTIFY dataChanged)
 
     Q_PROPERTY(QString wifiInterface READ wifiInterface NOTIFY dataChanged)
     Q_PROPERTY(QString wifiSsid READ wifiSsid NOTIFY dataChanged)
@@ -69,7 +70,9 @@ class NetworkInfo : public QObject
     Q_PROPERTY(QString wifiRxRate READ wifiRxRate NOTIFY dataChanged)
     Q_PROPERTY(QString wifiTxRate READ wifiTxRate NOTIFY dataChanged)
     Q_PROPERTY(QString wifiIp READ wifiIp NOTIFY dataChanged)
+    Q_PROPERTY(QString wifiIpv6 READ wifiIpv6 NOTIFY dataChanged)
     Q_PROPERTY(QString wifiGateway READ wifiGateway NOTIFY dataChanged)
+    Q_PROPERTY(QString wifiGateway6 READ wifiGateway6 NOTIFY dataChanged)
     Q_PROPERTY(QString wifiDns READ wifiDns NOTIFY dataChanged)
     Q_PROPERTY(QString wifiStatus READ wifiStatus NOTIFY dataChanged)
 
@@ -114,6 +117,7 @@ public:
     QString cqi() const { return m_cqi; }
     QString timingAdvance() const { return m_timingAdvance; }
     QString ims() const { return m_ims; }
+    QVariantList mobileIpEntries() const { return m_mobileIpEntries; }
 
     QString wifiInterface() const { return m_wifiInterface; }
     QString wifiSsid() const { return m_wifiSsid; }
@@ -125,7 +129,9 @@ public:
     QString wifiRxRate() const { return m_wifiRxRate; }
     QString wifiTxRate() const { return m_wifiTxRate; }
     QString wifiIp() const { return m_wifiIp; }
+    QString wifiIpv6() const { return m_wifiIpv6; }
     QString wifiGateway() const { return m_wifiGateway; }
+    QString wifiGateway6() const { return m_wifiGateway6; }
     QString wifiDns() const { return m_wifiDns; }
     QString wifiStatus() const { return m_wifiStatus; }
 
@@ -165,6 +171,9 @@ private:
     void updateTechnologyDisplay();
     void updateLteCellIdentity(quint32 ci);
 
+    void readMobileIpAsync();
+    void parseMobileAddresses(const QString &output);
+
     void readWifiAsync();
     void readWifiInterfaceAsync(const QString &iw, const QString &ip,
                                 const QString &dnsTool, const QString &iface);
@@ -172,6 +181,7 @@ private:
     void parseWifiLink(const QString &output);
     void parseWifiAddress(const QString &output);
     void parseWifiRoute(const QString &output);
+    void parseWifiRoute6(const QString &output);
     void parseWifiDns(const QString &output);
     QString detectWifiInterface(const QString &output) const;
     QString findProgram(const QString &name) const;
@@ -220,6 +230,7 @@ private:
     QString m_cqi = QStringLiteral("—");
     QString m_timingAdvance = QStringLiteral("—");
     QString m_ims = QStringLiteral("—");
+    QVariantList m_mobileIpEntries;
 
     QString m_wifiInterface = QStringLiteral("—");
     QString m_wifiSsid = QStringLiteral("—");
@@ -231,7 +242,9 @@ private:
     QString m_wifiRxRate = QStringLiteral("—");
     QString m_wifiTxRate = QStringLiteral("—");
     QString m_wifiIp = QStringLiteral("—");
+    QString m_wifiIpv6 = QStringLiteral("—");
     QString m_wifiGateway = QStringLiteral("—");
+    QString m_wifiGateway6 = QStringLiteral("—");
     QString m_wifiDns = QStringLiteral("—");
     QString m_wifiStatus = QStringLiteral("Čekám na načtení");
 };

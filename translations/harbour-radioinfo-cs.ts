@@ -107,12 +107,24 @@
         <translation>Frekvence</translation>
     </message>
     <message>
-        <source>Gateway</source>
-        <translation>Brána</translation>
-    </message>
-    <message>
         <source>Status</source>
         <translation>Stav</translation>
+    </message>
+    <message>
+        <source>IPv4 gateway</source>
+        <translation>IPv4 brána</translation>
+    </message>
+    <message>
+        <source>IPv6 gateway</source>
+        <translation>IPv6 brána</translation>
+    </message>
+    <message>
+        <source>Mobile IP interfaces</source>
+        <translation>Mobilní IP rozhraní</translation>
+    </message>
+    <message>
+        <source>No active mobile IP interface</source>
+        <translation>Žádné aktivní mobilní IP rozhraní</translation>
     </message>
 </context>
 <context>
@@ -228,6 +240,22 @@
     <message>
         <source>error</source>
         <translation>chyba</translation>
+    </message>
+    <message>
+        <source>ip -6 route: cannot start (%1)</source>
+        <translation>ip -6 route: nelze spustit (%1)</translation>
+    </message>
+    <message>
+        <source>Mobile IP: missing program ip</source>
+        <translation>Mobilní IP: chybí program ip</translation>
+    </message>
+    <message>
+        <source>Mobile IP: %1</source>
+        <translation>Mobilní IP: %1</translation>
+    </message>
+    <message>
+        <source>Mobile IP: cannot start ip (%1)</source>
+        <translation>Mobilní IP: nelze spustit ip (%1)</translation>
     </message>
 </context>
 </TS>

@@ -25,6 +25,7 @@ selected SIM; Wi-Fi information is shared.
 - Cell ID, LTE eNodeB ID (eNB), local Cell ID (CID), TAC and PCI
 - RSRP, RSRQ, SINR, CQI and Timing Advance when exposed by CellInfo
 - IMS registration and voice/SMS capability
+- active mobile packet-data interfaces (`ccmni*`) with IPv4/IPv6 addresses
 - persistent `org.nemomobile.ofono.CellInfo` subscription for live radio values
 
 RadioInfo does **not** invent NR information. On devices where oFono reports NR
@@ -38,7 +39,7 @@ but does not expose a separate NR CellInfo object/NRARFCN, the application shows
 - band, channel and frequency
 - RSSI
 - current RX/TX bitrate as reported by `iw`
-- IPv4 address and gateway
+- IPv4/IPv6 addresses and default gateways
 - DNS servers when `resolvectl` or `systemd-resolve` is available
 
 ## Portability
