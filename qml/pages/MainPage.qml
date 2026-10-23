@@ -145,7 +145,6 @@ Page {
                 }
             }
 
-            SectionHeader { text: qsTr("Status") }
 
             Row {
                 x: Theme.horizontalPageMargin

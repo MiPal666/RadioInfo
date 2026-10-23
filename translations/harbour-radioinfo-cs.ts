@@ -122,10 +122,6 @@
         <source>IPv6 gateway</source>
         <translation>IPv6 brána</translation>
     </message>
-    <message>
-        <source>Status</source>
-        <translation>Stav</translation>
-    </message>
 </context>
 <context>
     <name>NetworkInfo</name>
