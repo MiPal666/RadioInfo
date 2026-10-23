@@ -1,6 +1,6 @@
 Name:       harbour-radioinfo
-Summary:    Radio and network information
-Version:    0.1.7
+Summary:    FelisRadioInfo network diagnostics
+Version:    0.1.8
 Release:    1
 Group:      Qt/Qt
 License:    GPL-3.0-or-later
@@ -16,7 +16,7 @@ BuildRequires:  pkgconfig(Qt5DBus)
 BuildRequires:  desktop-file-utils
 
 %description
-Radio and network information for Sailfish OS.
+FelisRadioInfo cellular and Wi-Fi diagnostics for Sailfish OS.
 
 %prep
 %autosetup -n %{name}-%{version}

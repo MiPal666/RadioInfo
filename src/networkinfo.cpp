@@ -723,18 +723,6 @@ void NetworkInfo::updateTechnologyDisplay()
         m_technology = QStringLiteral("—");
 }
 
-void NetworkInfo::retranslate()
-{
-    // Recreate labels which are stored as strings in the backend.
-    updateTechnologyDisplay();
-    emit dataChanged();
-
-    // Re-read user-facing status/IMS/Wi-Fi texts in the newly selected
-    // language. Radio values continue to be updated by the CellInfo signals.
-    if (!m_refreshing)
-        refresh();
-}
-
 void NetworkInfo::readRegistrationAsync()
 {
     QDBusInterface *iface = new QDBusInterface(
@@ -961,8 +949,9 @@ void NetworkInfo::parseMobileAddresses(const QString &output)
 void NetworkInfo::readWifiAsync()
 {
     m_wifiInterface = QStringLiteral("—");
-    m_wifiSsid = m_wifiBssid = m_wifiBand = m_wifiChannel = QStringLiteral("—");
-    m_wifiFrequency = m_wifiRssi = m_wifiRxRate = m_wifiTxRate = QStringLiteral("—");
+    m_wifiSsid = m_wifiBssid = m_wifiStandard = m_wifiBand = m_wifiChannel = QStringLiteral("—");
+    m_wifiChannelWidth = m_wifiFrequency = m_wifiRssi = QStringLiteral("—");
+    m_wifiRxRate = m_wifiTxRate = m_wifiNss = QStringLiteral("—");
     m_wifiIp = m_wifiIpv6 = m_wifiGateway = m_wifiGateway6 = m_wifiDns = QStringLiteral("—");
     m_wifiStatus = tr("Loading…");
     emit dataChanged();
@@ -985,9 +974,15 @@ void NetworkInfo::readWifiAsync()
     if (dnsTool.isEmpty())
         dnsTool = findProgram(QStringLiteral("systemd-resolve"));
 
+    // Optional source for the actual negotiated Wi-Fi generation. Some
+    // drivers omit HE/VHT details from `iw link`, while wpa_supplicant still
+    // exposes wifi_generation. Failure remains silent and iw is used as a
+    // fallback.
+    const QString wpaCli = findProgram(QStringLiteral("wpa_cli"));
+
     QProcess *dev = new QProcess(this);
     connect(dev, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
-            [this, dev, iw, ip, dnsTool](int code, QProcess::ExitStatus) {
+            [this, dev, iw, ip, dnsTool, wpaCli](int code, QProcess::ExitStatus) {
         const QString out = QString::fromUtf8(dev->readAllStandardOutput());
         const QString err = QString::fromUtf8(dev->readAllStandardError()).trimmed();
         dev->deleteLater();
@@ -1010,8 +1005,9 @@ void NetworkInfo::readWifiAsync()
         }
 
         m_wifiInterface = iface;
+        parseWifiDeviceInfo(out, iface);
         emit dataChanged();
-        readWifiInterfaceAsync(iw, ip, dnsTool, iface);
+        readWifiInterfaceAsync(iw, ip, dnsTool, wpaCli, iface);
     });
     connect(dev, &QProcess::errorOccurred, this,
             [this, dev](QProcess::ProcessError error) {
@@ -1027,16 +1023,20 @@ void NetworkInfo::readWifiAsync()
 }
 
 void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
-                                         const QString &dnsTool, const QString &iface)
+                                         const QString &dnsTool, const QString &wpaCli,
+                                         const QString &iface)
 {
     struct SharedState {
-        int pending = 4;
+        // Required jobs: link, cached scan dump, addresses, IPv4 route, IPv6 route.
+        int pending = 5;
         bool disconnected = false;
         QStringList errors;
     };
 
     SharedState *state = new SharedState;
     if (!dnsTool.isEmpty())
+        ++state->pending;
+    if (!wpaCli.isEmpty())
         ++state->pending;
 
     auto done = [this, state]() {
@@ -1084,6 +1084,47 @@ void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
         done();
     });
     link->start(iw, QStringList() << QStringLiteral("dev") << iface << QStringLiteral("link"));
+
+    // Cached scan data can expose the current BSS channel width on drivers
+    // which omit it from `iw dev` and `iw ... link`. This does not trigger a
+    // new scan. Failure is ignored because it is an optional enrichment path.
+    QProcess *scan = new QProcess(this);
+    connect(scan, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
+            [this, scan, done](int code, QProcess::ExitStatus) {
+        if (code == 0)
+            parseWifiScanDump(QString::fromUtf8(scan->readAllStandardOutput()));
+        scan->deleteLater();
+        done();
+    });
+    connect(scan, &QProcess::errorOccurred, this,
+            [scan, done](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart)
+            return;
+        scan->deleteLater();
+        done();
+    });
+    scan->start(iw, QStringList() << QStringLiteral("dev") << iface
+                                  << QStringLiteral("scan") << QStringLiteral("dump"));
+
+    if (!wpaCli.isEmpty()) {
+        QProcess *wpa = new QProcess(this);
+        connect(wpa, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
+                [this, wpa, done](int code, QProcess::ExitStatus) {
+            if (code == 0)
+                parseWifiWpaStatus(QString::fromUtf8(wpa->readAllStandardOutput()));
+            wpa->deleteLater();
+            done();
+        });
+        connect(wpa, &QProcess::errorOccurred, this,
+                [wpa, done](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart)
+                return;
+            wpa->deleteLater();
+            done();
+        });
+        wpa->start(wpaCli, QStringList() << QStringLiteral("-i") << iface
+                                         << QStringLiteral("status"));
+    }
 
     QProcess *addr = new QProcess(this);
     connect(addr, static_cast<void(QProcess::*)(int,QProcess::ExitStatus)>(&QProcess::finished), this,
@@ -1185,6 +1226,47 @@ void NetworkInfo::readWifiInterfaceAsync(const QString &iw, const QString &ip,
     }
 }
 
+void NetworkInfo::parseWifiDeviceInfo(const QString &output, const QString &iface)
+{
+    // Parse only the selected interface block from `iw dev`.  This output
+    // often exposes the channel width even when `iw ... link` omits it.
+    QStringList block;
+    bool inSelected = false;
+
+    const QStringList lines = output.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("Interface "))) {
+            const QString current = trimmed.mid(QStringLiteral("Interface ").size()).trimmed();
+            if (inSelected && current != iface)
+                break;
+            inSelected = (current == iface);
+            continue;
+        }
+        if (inSelected)
+            block << trimmed;
+    }
+
+    const QString selected = block.join(QStringLiteral("\n"));
+    QRegularExpression re(QStringLiteral(
+        "\\bchannel\\s+([0-9]+)\\s+\\(([0-9]+)\\s+MHz\\),\\s+width:\\s*([0-9.]+)\\s+MHz"));
+    const QRegularExpressionMatch m = re.match(selected);
+    if (!m.hasMatch())
+        return;
+
+    m_wifiChannel = m.captured(1);
+    const int mhz = m.captured(2).toInt();
+    m_wifiFrequency = QStringLiteral("%1 MHz").arg(mhz);
+    m_wifiChannelWidth = m.captured(3) + QStringLiteral(" MHz");
+
+    if (mhz >= 2400 && mhz < 2500)
+        m_wifiBand = QStringLiteral("2.4 GHz");
+    else if (mhz >= 4900 && mhz < 5925)
+        m_wifiBand = QStringLiteral("5 GHz");
+    else if (mhz >= 5925)
+        m_wifiBand = QStringLiteral("6 GHz");
+}
+
 void NetworkInfo::parseWifiLink(const QString &output)
 {
     QRegularExpression re;
@@ -1205,7 +1287,7 @@ void NetworkInfo::parseWifiLink(const QString &output)
         m_wifiFrequency = QStringLiteral("%1 MHz").arg(mhz);
         const int channel = wifiChannelFromFrequency(mhz);
         m_wifiChannel = channel > 0 ? QString::number(channel) : QStringLiteral("—");
-        if (mhz >= 2400 && mhz < 2500) m_wifiBand = QStringLiteral("2,4 GHz");
+        if (mhz >= 2400 && mhz < 2500) m_wifiBand = QStringLiteral("2.4 GHz");
         else if (mhz >= 4900 && mhz < 5925) m_wifiBand = QStringLiteral("5 GHz");
         else if (mhz >= 5925) m_wifiBand = QStringLiteral("6 GHz");
     }
@@ -1214,13 +1296,128 @@ void NetworkInfo::parseWifiLink(const QString &output)
     m = re.match(output);
     if (m.hasMatch()) m_wifiRssi = m.captured(1) + QStringLiteral(" dBm");
 
+    QString rxDetails;
+    QString txDetails;
+
     re.setPattern(QStringLiteral("\\brx bitrate:\\s*([^\\n]+)"));
     m = re.match(output);
-    if (m.hasMatch()) m_wifiRxRate = m.captured(1).trimmed();
+    if (m.hasMatch()) {
+        rxDetails = m.captured(1).trimmed();
+        m_wifiRxRate = rxDetails;
+    }
 
     re.setPattern(QStringLiteral("\\btx bitrate:\\s*([^\\n]+)"));
     m = re.match(output);
-    if (m.hasMatch()) m_wifiTxRate = m.captured(1).trimmed();
+    if (m.hasMatch()) {
+        txDetails = m.captured(1).trimmed();
+        m_wifiTxRate = txDetails;
+    }
+
+    // The bitrate lines emitted by iw carry PHY details such as
+    // "160MHz HE-MCS 6 HE-NSS 2". We report only information explicitly
+    // exposed by the driver.
+    const QString phyDetails = rxDetails + QLatin1Char(' ') + txDetails;
+
+    // Fallback standard detection. wpa_supplicant's wifi_generation, when
+    // available, is parsed separately and may override this value.
+    if (m_wifiStandard == QStringLiteral("—")) {
+        if (phyDetails.contains(QRegularExpression(QStringLiteral("\\bEHT(?:-|\\b)"))))
+            m_wifiStandard = QStringLiteral("Wi-Fi 7 / 802.11be");
+        else if (phyDetails.contains(QRegularExpression(QStringLiteral("\\bHE(?:-|\\b)"))))
+            m_wifiStandard = QStringLiteral("Wi-Fi 6 / 802.11ax");
+        else if (phyDetails.contains(QRegularExpression(QStringLiteral("\\bVHT(?:-|\\b)"))))
+            m_wifiStandard = QStringLiteral("Wi-Fi 5 / 802.11ac");
+        else if (phyDetails.contains(QRegularExpression(QStringLiteral("\\bHT(?:-|\\b)"))))
+            m_wifiStandard = QStringLiteral("Wi-Fi 4 / 802.11n");
+    }
+
+    // `iw dev` is preferred for channel width. Use the current rate only as a
+    // fallback when the interface block did not expose a width.
+    if (m_wifiChannelWidth == QStringLiteral("—")) {
+        QRegularExpression widthRe(QStringLiteral("\\b([0-9]+(?:\\.[0-9]+)?)\\s*MHz\\b"));
+        QRegularExpressionMatch widthMatch = widthRe.match(rxDetails);
+        if (!widthMatch.hasMatch())
+            widthMatch = widthRe.match(txDetails);
+        if (widthMatch.hasMatch())
+            m_wifiChannelWidth = widthMatch.captured(1) + QStringLiteral(" MHz");
+    }
+
+    // Never infer NSS from link speed. Show only EHT-NSS / HE-NSS / VHT-NSS
+    // reported explicitly by the driver; RX and TX may legitimately differ.
+    QRegularExpression nssRe(QStringLiteral("\\b(?:EHT|HE|VHT)-NSS\\s+([0-9]+)\\b"));
+    const QRegularExpressionMatch rxNss = nssRe.match(rxDetails);
+    const QRegularExpressionMatch txNss = nssRe.match(txDetails);
+    if (rxNss.hasMatch() && txNss.hasMatch()) {
+        m_wifiNss = QStringLiteral("RX %1 / TX %2")
+                .arg(rxNss.captured(1), txNss.captured(1));
+    } else if (rxNss.hasMatch()) {
+        m_wifiNss = QStringLiteral("RX %1").arg(rxNss.captured(1));
+    } else if (txNss.hasMatch()) {
+        m_wifiNss = QStringLiteral("TX %1").arg(txNss.captured(1));
+    }
+}
+
+void NetworkInfo::parseWifiWpaStatus(const QString &output)
+{
+    const QRegularExpression re(QStringLiteral("(?:^|\\n)wifi_generation=([0-9]+)(?:\\r?$|\\n)"),
+                                QRegularExpression::MultilineOption);
+    const QRegularExpressionMatch match = re.match(output);
+    if (!match.hasMatch())
+        return;
+
+    const int generation = match.captured(1).toInt();
+    switch (generation) {
+    case 7:
+        m_wifiStandard = QStringLiteral("Wi-Fi 7 / 802.11be");
+        break;
+    case 6:
+        m_wifiStandard = QStringLiteral("Wi-Fi 6 / 802.11ax");
+        break;
+    case 5:
+        m_wifiStandard = QStringLiteral("Wi-Fi 5 / 802.11ac");
+        break;
+    case 4:
+        m_wifiStandard = QStringLiteral("Wi-Fi 4 / 802.11n");
+        break;
+    default:
+        break;
+    }
+}
+
+void NetworkInfo::parseWifiScanDump(const QString &output)
+{
+    if (m_wifiChannelWidth != QStringLiteral("—"))
+        return;
+
+    // Only inspect the BSS which iw explicitly marks as associated. AP
+    // capability blocks may advertise newer PHY generations than the active
+    // connection, so this function extracts channel width only.
+    const QStringList lines = output.split(QLatin1Char('\n'));
+    QStringList associatedBlock;
+    bool inAssociated = false;
+
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (trimmed.startsWith(QStringLiteral("BSS "))) {
+            if (inAssociated)
+                break;
+            inAssociated = trimmed.contains(QStringLiteral("-- associated"));
+            continue;
+        }
+        if (inAssociated)
+            associatedBlock << trimmed;
+    }
+
+    if (associatedBlock.isEmpty())
+        return;
+
+    const QString block = associatedBlock.join(QStringLiteral("\n"));
+    const QRegularExpression widthRe(
+                QStringLiteral("\\bchannel width:\\s*[0-9]+\\s*\\(([0-9]+(?:\\.[0-9]+)?)\\s*MHz\\)"),
+                QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch width = widthRe.match(block);
+    if (width.hasMatch())
+        m_wifiChannelWidth = width.captured(1) + QStringLiteral(" MHz");
 }
 
 void NetworkInfo::parseWifiAddress(const QString &output)

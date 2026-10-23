@@ -1,3 +1,3 @@
 #pragma once
 
-#define RADIOINFO_VERSION "0.1.7"
+#define RADIOINFO_VERSION "0.1.8"

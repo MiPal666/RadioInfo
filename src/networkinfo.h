@@ -63,12 +63,15 @@ class NetworkInfo : public QObject
     Q_PROPERTY(QString wifiInterface READ wifiInterface NOTIFY dataChanged)
     Q_PROPERTY(QString wifiSsid READ wifiSsid NOTIFY dataChanged)
     Q_PROPERTY(QString wifiBssid READ wifiBssid NOTIFY dataChanged)
+    Q_PROPERTY(QString wifiStandard READ wifiStandard NOTIFY dataChanged)
     Q_PROPERTY(QString wifiBand READ wifiBand NOTIFY dataChanged)
     Q_PROPERTY(QString wifiChannel READ wifiChannel NOTIFY dataChanged)
+    Q_PROPERTY(QString wifiChannelWidth READ wifiChannelWidth NOTIFY dataChanged)
     Q_PROPERTY(QString wifiFrequency READ wifiFrequency NOTIFY dataChanged)
     Q_PROPERTY(QString wifiRssi READ wifiRssi NOTIFY dataChanged)
     Q_PROPERTY(QString wifiRxRate READ wifiRxRate NOTIFY dataChanged)
     Q_PROPERTY(QString wifiTxRate READ wifiTxRate NOTIFY dataChanged)
+    Q_PROPERTY(QString wifiNss READ wifiNss NOTIFY dataChanged)
     Q_PROPERTY(QString wifiIp READ wifiIp NOTIFY dataChanged)
     Q_PROPERTY(QString wifiIpv6 READ wifiIpv6 NOTIFY dataChanged)
     Q_PROPERTY(QString wifiGateway READ wifiGateway NOTIFY dataChanged)
@@ -122,12 +125,15 @@ public:
     QString wifiInterface() const { return m_wifiInterface; }
     QString wifiSsid() const { return m_wifiSsid; }
     QString wifiBssid() const { return m_wifiBssid; }
+    QString wifiStandard() const { return m_wifiStandard; }
     QString wifiBand() const { return m_wifiBand; }
     QString wifiChannel() const { return m_wifiChannel; }
+    QString wifiChannelWidth() const { return m_wifiChannelWidth; }
     QString wifiFrequency() const { return m_wifiFrequency; }
     QString wifiRssi() const { return m_wifiRssi; }
     QString wifiRxRate() const { return m_wifiRxRate; }
     QString wifiTxRate() const { return m_wifiTxRate; }
+    QString wifiNss() const { return m_wifiNss; }
     QString wifiIp() const { return m_wifiIp; }
     QString wifiIpv6() const { return m_wifiIpv6; }
     QString wifiGateway() const { return m_wifiGateway; }
@@ -137,7 +143,6 @@ public:
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void selectSim(int index);
-    Q_INVOKABLE void retranslate();
 
 signals:
     void dataChanged();
@@ -176,9 +181,13 @@ private:
 
     void readWifiAsync();
     void readWifiInterfaceAsync(const QString &iw, const QString &ip,
-                                const QString &dnsTool, const QString &iface);
+                                const QString &dnsTool, const QString &wpaCli,
+                                const QString &iface);
     void finishRefreshPart();
+    void parseWifiDeviceInfo(const QString &output, const QString &iface);
     void parseWifiLink(const QString &output);
+    void parseWifiWpaStatus(const QString &output);
+    void parseWifiScanDump(const QString &output);
     void parseWifiAddress(const QString &output);
     void parseWifiRoute(const QString &output);
     void parseWifiRoute6(const QString &output);
@@ -235,16 +244,19 @@ private:
     QString m_wifiInterface = QStringLiteral("—");
     QString m_wifiSsid = QStringLiteral("—");
     QString m_wifiBssid = QStringLiteral("—");
+    QString m_wifiStandard = QStringLiteral("—");
     QString m_wifiBand = QStringLiteral("—");
     QString m_wifiChannel = QStringLiteral("—");
+    QString m_wifiChannelWidth = QStringLiteral("—");
     QString m_wifiFrequency = QStringLiteral("—");
     QString m_wifiRssi = QStringLiteral("—");
     QString m_wifiRxRate = QStringLiteral("—");
     QString m_wifiTxRate = QStringLiteral("—");
+    QString m_wifiNss = QStringLiteral("—");
     QString m_wifiIp = QStringLiteral("—");
     QString m_wifiIpv6 = QStringLiteral("—");
     QString m_wifiGateway = QStringLiteral("—");
     QString m_wifiGateway6 = QStringLiteral("—");
     QString m_wifiDns = QStringLiteral("—");
-    QString m_wifiStatus = QStringLiteral("Čekám na načtení");
+    QString m_wifiStatus = QStringLiteral("—");
 };

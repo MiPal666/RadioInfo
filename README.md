@@ -1,13 +1,13 @@
-# RadioInfo for Sailfish OS
+# FelisRadioInfo for Sailfish OS
 
-RadioInfo is a small native Sailfish OS diagnostic application for displaying
+FelisRadioInfo is a small native Sailfish OS diagnostic application for displaying
 cellular and Wi-Fi connection details without telemetry, accounts or external
 network services.
 
 
 ## Dual-SIM
 
-RadioInfo enumerates all oFono modems (`/ril_0`, `/ril_1`, ...), orders them by
+FelisRadioInfo enumerates all oFono modems (`/ril_0`, `/ril_1`, ...), orders them by
 slot, and allows switching the cellular diagnostics between SIMs. Operator
 labels are resolved independently from network registration or the SIM service
 provider name. Cellular state and CellInfo subscriptions follow the currently
@@ -28,7 +28,7 @@ selected SIM; Wi-Fi information is shared.
 - active mobile packet-data interfaces (`ccmni*`) with IPv4/IPv6 addresses
 - persistent `org.nemomobile.ofono.CellInfo` subscription for live radio values
 
-RadioInfo does **not** invent NR information. On devices where oFono reports NR
+FelisRadioInfo does **not** invent NR information. On devices where oFono reports NR
 but does not expose a separate NR CellInfo object/NRARFCN, the application shows
 `NR band: Unavailable` and labels the visible LTE information as the LTE anchor.
 
@@ -36,9 +36,11 @@ but does not expose a separate NR CellInfo object/NRARFCN, the application shows
 
 - automatically detects the managed Wi-Fi interface (no hard-coded `wlan0`)
 - SSID / BSSID
-- band, channel and frequency
+- current Wi-Fi generation/standard from `wpa_supplicant` when available, with an `iw` PHY-rate fallback (Wi-Fi 4/5/6/7)
+- band, channel, channel width and frequency; channel width is read from the current interface/link or associated BSS data
 - RSSI
 - current RX/TX bitrate as reported by `iw`
+- RX/TX spatial streams (NSS) only when explicitly reported by the Wi-Fi driver; NSS is never estimated from link speed
 - IPv4/IPv6 addresses and default gateways
 - DNS servers when `resolvectl` or `systemd-resolve` is available
 
@@ -62,8 +64,9 @@ built against the SailfishOS 5.1.0.11 aarch64 SDK target.
 
 ## Sailjail note
 
-The current Wi-Fi backend calls the local `iw` and `ip` utilities. Sailjail blocks
-that on the tested device, therefore the desktop file currently contains:
+The current Wi-Fi backend calls the local `iw` and `ip` utilities and can use `wpa_cli`
+as an optional source for the negotiated Wi-Fi generation. Sailjail blocks the required
+local tooling on the tested device, therefore the desktop file currently contains:
 
     [X-Sailjail]
     Sandboxing=Disabled
@@ -75,31 +78,33 @@ to direct installation, FelisCatus Apps or similar repositories.
 
 ## Languages
 
-RadioInfo uses Qt/Sailfish translation catalogues. English is the engineering
-source language and Czech is included as a complete translation.
+English is the source and fallback language. The application follows the Sailfish OS
+system language automatically; there is no separate language selector inside the app.
+Czech is included from the first public localized build. Additional translations can be
+added as standard Qt `.ts` catalogues in `translations/`.
 
-The language can be selected directly in the application:
+## User interface
 
-- **System** — follow the phone language (Czech when the system locale is Czech,
-  English for other currently unsupported locales)
-- **English**
-- **Čeština**
+The main view is split into two always-accessible tabs: **Mobile network** and **Wi-Fi**.
+The tab switcher stays visible, so switching between radio and Wi-Fi diagnostics does not
+require scrolling back through the other section.
 
-The selection is stored in the application configuration and takes effect
-immediately. Additional translations can be added in `translations/` using the
-standard Qt `.ts` format and `TRANSLATIONS` list in `RadioInfo.pro`.
+The visible application name is **FelisRadioInfo**. The package, executable and desktop
+file identifiers intentionally remain `harbour-radioinfo` to preserve upgrade compatibility
+with existing installations.
 
 ## Build
 
 With the Sailfish SDK configured for a suitable target:
 
-    sfdk build
+    sfdk -c no-fix-version build
 
-The RPM is written below `RPMS/`.
+`no-fix-version` keeps the RPM version equal to the version in the spec file instead
+of adding a Git branch/timestamp development suffix. The RPM is written below `RPMS/`.
 
 ## Privacy
 
-RadioInfo reads local system/network state only. It contains no telemetry and does
+FelisRadioInfo reads local system/network state only. It contains no telemetry and does
 not send collected values anywhere.
 
 ## License

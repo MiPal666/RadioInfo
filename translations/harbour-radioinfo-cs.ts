@@ -11,32 +11,24 @@
 <context>
     <name>MainPage</name>
     <message>
+        <source>Version</source>
+        <translation>Verze</translation>
+    </message>
+    <message>
+        <source>Mobile network</source>
+        <translation>Mobilní síť</translation>
+    </message>
+    <message>
+        <source>Wi-Fi</source>
+        <translation>Wi-Fi</translation>
+    </message>
+    <message>
         <source>Refreshing…</source>
         <translation>Obnovuji…</translation>
     </message>
     <message>
         <source>Refresh</source>
         <translation>Obnovit</translation>
-    </message>
-    <message>
-        <source>RadioInfo — refreshing…</source>
-        <translation>RadioInfo — obnovuji…</translation>
-    </message>
-    <message>
-        <source>Version</source>
-        <translation>Verze</translation>
-    </message>
-    <message>
-        <source>Language</source>
-        <translation>Jazyk</translation>
-    </message>
-    <message>
-        <source>System</source>
-        <translation>Systém</translation>
-    </message>
-    <message>
-        <source>Mobile network</source>
-        <translation>Mobilní síť</translation>
     </message>
     <message>
         <source>Modem</source>
@@ -87,12 +79,20 @@
         <translation>Timing Advance</translation>
     </message>
     <message>
-        <source>Wi-Fi</source>
-        <translation>Wi-Fi</translation>
+        <source>Mobile IP interfaces</source>
+        <translation>Mobilní IP rozhraní</translation>
+    </message>
+    <message>
+        <source>No active mobile IP interface</source>
+        <translation>Žádné aktivní mobilní IP rozhraní</translation>
     </message>
     <message>
         <source>Interface</source>
         <translation>Rozhraní</translation>
+    </message>
+    <message>
+        <source>Wi-Fi standard</source>
+        <translation>Wi-Fi standard</translation>
     </message>
     <message>
         <source>Band</source>
@@ -103,12 +103,16 @@
         <translation>Kanál</translation>
     </message>
     <message>
+        <source>Channel width</source>
+        <translation>Šířka kanálu</translation>
+    </message>
+    <message>
         <source>Frequency</source>
         <translation>Frekvence</translation>
     </message>
     <message>
-        <source>Status</source>
-        <translation>Stav</translation>
+        <source>Spatial streams (NSS)</source>
+        <translation>Prostorové proudy (NSS)</translation>
     </message>
     <message>
         <source>IPv4 gateway</source>
@@ -119,19 +123,15 @@
         <translation>IPv6 brána</translation>
     </message>
     <message>
-        <source>Mobile IP interfaces</source>
-        <translation>Mobilní IP rozhraní</translation>
-    </message>
-    <message>
-        <source>No active mobile IP interface</source>
-        <translation>Žádné aktivní mobilní IP rozhraní</translation>
+        <source>Status</source>
+        <translation>Stav</translation>
     </message>
 </context>
 <context>
     <name>NetworkInfo</name>
     <message>
         <source>Error: system D-Bus is not available</source>
-        <translation>Chyba: system D-Bus není dostupný</translation>
+        <translation>Chyba: systémová D-Bus není dostupná</translation>
     </message>
     <message>
         <source>Searching for modem…</source>
@@ -143,7 +143,11 @@
     </message>
     <message>
         <source>No oFono modem was found</source>
-        <translation>Žádný oFono modem nebyl nalezen</translation>
+        <translation>Nebyl nalezen žádný oFono modem</translation>
+    </message>
+    <message>
+        <source>Band</source>
+        <translation>Pásmo</translation>
     </message>
     <message>
         <source>Refreshing…</source>
@@ -155,7 +159,7 @@
     </message>
     <message>
         <source>SIM is not registered on the network</source>
-        <translation>SIM není registrovaná v síti</translation>
+        <translation>SIM není registrována v síti</translation>
     </message>
     <message>
         <source>Updated %1</source>
@@ -167,7 +171,7 @@
     </message>
     <message>
         <source>Serving cell removed, waiting for a new one…</source>
-        <translation>Serving cell odstraněna, čekám na novou…</translation>
+        <translation>Obsluhující buňka odstraněna, čekám na novou…</translation>
     </message>
     <message>
         <source>NR band</source>
@@ -180,10 +184,6 @@
     <message>
         <source>LTE EARFCN</source>
         <translation>LTE EARFCN</translation>
-    </message>
-    <message>
-        <source>Band</source>
-        <translation>Pásmo</translation>
     </message>
     <message>
         <source>oFono registration unavailable</source>
@@ -206,6 +206,22 @@
         <translation>IMS nedostupné</translation>
     </message>
     <message>
+        <source>Mobile IP: missing program ip</source>
+        <translation>Mobilní IP: chybí program ip</translation>
+    </message>
+    <message>
+        <source>Mobile IP: %1</source>
+        <translation>Mobilní IP: %1</translation>
+    </message>
+    <message>
+        <source>error</source>
+        <translation>chyba</translation>
+    </message>
+    <message>
+        <source>Mobile IP: cannot start ip (%1)</source>
+        <translation>Mobilní IP: nelze spustit ip (%1)</translation>
+    </message>
+    <message>
         <source>Loading…</source>
         <translation>Načítám…</translation>
     </message>
@@ -226,6 +242,10 @@
         <translation>iw: nelze spustit (%1)</translation>
     </message>
     <message>
+        <source>Disconnected</source>
+        <translation>Nepřipojeno</translation>
+    </message>
+    <message>
         <source>ip addr: cannot start (%1)</source>
         <translation>ip addr: nelze spustit (%1)</translation>
     </message>
@@ -234,28 +254,8 @@
         <translation>ip route: nelze spustit (%1)</translation>
     </message>
     <message>
-        <source>Disconnected</source>
-        <translation>Nepřipojeno</translation>
-    </message>
-    <message>
-        <source>error</source>
-        <translation>chyba</translation>
-    </message>
-    <message>
         <source>ip -6 route: cannot start (%1)</source>
         <translation>ip -6 route: nelze spustit (%1)</translation>
-    </message>
-    <message>
-        <source>Mobile IP: missing program ip</source>
-        <translation>Mobilní IP: chybí program ip</translation>
-    </message>
-    <message>
-        <source>Mobile IP: %1</source>
-        <translation>Mobilní IP: %1</translation>
-    </message>
-    <message>
-        <source>Mobile IP: cannot start ip (%1)</source>
-        <translation>Mobilní IP: nelze spustit ip (%1)</translation>
     </message>
 </context>
 </TS>

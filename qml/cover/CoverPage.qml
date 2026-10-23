@@ -13,7 +13,7 @@ CoverBackground {
 
         Label {
             width: parent.width
-            text: "RadioInfo"
+            text: "FelisRadioInfo"
             color: Theme.highlightColor
             font.pixelSize: Theme.fontSizeLarge
             truncationMode: TruncationMode.Fade
